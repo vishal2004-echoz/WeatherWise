@@ -1,0 +1,25 @@
+
+services:
+  weatherwise:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: weatherwise-app
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+    healthcheck:
+      test:
+        - CMD
+        - java
+        - -version
+      interval: 30s
+      timeout: 10s
+      retries: 3

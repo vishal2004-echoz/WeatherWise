@@ -1,51 +1,116 @@
+
 pipeline {
     agent any
 
     tools {
-        maven 'Maven3'   // Manage Jenkins > Tools: name these exactly
-        jdk   'JDK17'
+        jdk 'JDK17'
+        maven 'Maven3'
+    }
+
+    environment {
+        DOCKERHUB_REPO = 'YOUR_DOCKERHUB_USERNAME/weatherwise'
     }
 
     options {
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '10'))
-    }
-
-    triggers {
-        pollSCM('H/5 * * * *')   // or use a GitHub webhook
+        timeout(time: 20, unit: 'MINUTES')
+        disableConcurrentBuilds()
     }
 
     stages {
+
         stage('Checkout') {
-            steps { checkout scm }
-        }
-        stage('Build') {
-            steps { sh 'mvn -B clean compile' }
-        }
-        stage('Test') {
-            steps { sh 'mvn -B test' }
-            post {
-                always { junit 'target/surefire-reports/*.xml' }
+            steps {
+                checkout scm
             }
         }
-        stage('Package') {
-            steps { sh 'mvn -B package -DskipTests' }
+
+        stage('Build') {
+            steps {
+                sh 'java -version'
+                sh 'mvn -version'
+                sh 'mvn -B clean compile'
+            }
         }
-        stage('Archive') {
-            steps { archiveArtifacts artifacts: 'target/*.jar', fingerprint: true }
+
+        stage('Test') {
+            steps {
+                sh 'mvn -B test'
+            }
+        }
+
+        stage('Package') {
+            steps {
+                sh 'mvn -B package -DskipTests'
+                archiveArtifacts(
+                    artifacts: 'target/*.jar',
+                    fingerprint: true
+                )
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build \
+                    -t $DOCKERHUB_REPO:$BUILD_NUMBER \
+                    -t $DOCKERHUB_REPO:latest .
+                '''
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            when {
+                anyOf {
+                    branch 'main'
+                    expression { !env.BRANCH_NAME }
+                }
+            }
+
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKERHUB_USER',
+                        passwordVariable: 'DOCKERHUB_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set -e
+
+                        echo "$DOCKERHUB_TOKEN" | docker login \
+                          --username "$DOCKERHUB_USER" \
+                          --password-stdin
+
+                        trap 'docker logout' EXIT
+
+                        docker push $DOCKERHUB_REPO:$BUILD_NUMBER
+                        docker push $DOCKERHUB_REPO:latest
+                    '''
+                }
+            }
         }
     }
 
     post {
-        success {
-            mail to: 'your-email@example.com',
-                 subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Build passed.\n${env.BUILD_URL}"
+        always {
+            junit(
+                testResults: 'target/surefire-reports/*.xml',
+                allowEmptyResults: true
+            )
         }
+
+        success {
+            echo 'WeatherWise CI/CD completed successfully!'
+        }
+
         failure {
-            mail to: 'your-email@example.com',
-                 subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Build failed. Check the console output:\n${env.BUILD_URL}console"
+            echo 'WeatherWise pipeline failed. Check the console output.'
+        }
+
+        cleanup {
+            deleteDir()
         }
     }
 }
