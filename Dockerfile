@@ -8,8 +8,6 @@ COPY pom.xml .
 RUN mvn -B dependency:go-offline
 
 COPY src ./src
-
-# Compile, test and package
 RUN mvn -B clean verify
 
 # Stage 2: Run the application
