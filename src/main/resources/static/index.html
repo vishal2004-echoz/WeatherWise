@@ -1,47 +1,99 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WeatherWise</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>WeatherWise</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
-  <header class="top">
-    <span class="brand">WeatherWise</span>
-    <div class="search">
-      <input id="q" type="search" placeholder="Search for a city" autocomplete="off" aria-label="Search for a city">
-      <ul id="suggest" hidden></ul>
-    </div>
-    <div class="units" role="group" aria-label="Temperature unit">
-      <button type="button" data-unit="c">°C</button>
-      <button type="button" data-unit="f">°F</button>
-    </div>
-  </header>
 
-  <p id="status" role="status"></p>
-  <div id="recent" class="recent" aria-label="Recent searches"></div>
+    <!-- Header -->
+    <header class="top">
+        <span class="brand">WeatherWise</span>
 
-  <main id="app" class="loading">
-    <section id="hero" class="hero"></section>
-    <section id="stats" class="stats"></section>
+        <div class="search">
+            <input
+                id="q"
+                type="search"
+                placeholder="Search for a city"
+                autocomplete="off"
+                aria-label="Search for a city"
+            >
+            <ul id="suggest" hidden></ul>
+        </div>
 
-    <section class="panel">
-      <h2>Next 24 hours</h2>
-      <div id="strip" class="strip"></div>
-      <div class="chart"><canvas id="chart" aria-label="Temperature chart for the next 24 hours"></canvas></div>
-    </section>
+        <div class="units" role="group" aria-label="Temperature unit">
+            <button type="button" data-unit="c">°C</button>
+            <button type="button" data-unit="f">°F</button>
+        </div>
+    </header>
 
-    <section class="panel">
-      <h2>7-day forecast</h2>
-      <div id="daily" class="daily"></div>
-    </section>
-  </main>
+    <!-- Application Status -->
+    <p id="status" role="status"></p>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="js/app.js"></script>
+    <!-- Recent Searches -->
+    <div
+        id="recent"
+        class="recent"
+        aria-label="Recent searches"
+    ></div>
+
+    <!-- Main Weather Application -->
+    <main id="app" class="loading">
+
+        <section id="hero" class="hero"></section>
+
+        <section id="stats" class="stats"></section>
+
+        <!-- Hourly Forecast -->
+        <section class="panel">
+            <h2>Next 24 hours</h2>
+
+            <div id="strip" class="strip"></div>
+
+            <div class="chart">
+                <canvas
+                    id="chart"
+                    aria-label="Temperature chart for the next 24 hours"
+                ></canvas>
+            </div>
+        </section>
+
+        <!-- Weekly Forecast -->
+        <section class="panel">
+            <h2>7-day forecast</h2>
+
+            <div id="daily" class="daily"></div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>WeatherWise - Your Weather Companion</p>
+        <p>Built with Java, Spring Boot and JavaScript</p>
+    </footer>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Application JavaScript -->
+    <script src="js/app.js"></script>
+
 </body>
 </html>
