@@ -1,51 +1,76 @@
+
 pipeline {
     agent any
 
     tools {
-        maven 'Maven3'   // Manage Jenkins > Tools: name these exactly
-        jdk   'JDK17'
+        maven 'Maven3'
+        jdk 'JDK17'
     }
 
     options {
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
     }
 
     triggers {
-        pollSCM('H/5 * * * *')   // or use a GitHub webhook
+        pollSCM('H/5 * * * *')
     }
 
     stages {
+
         stage('Checkout') {
-            steps { checkout scm }
-        }
-        stage('Build') {
-            steps { sh 'mvn -B clean compile' }
-        }
-        stage('Test') {
-            steps { sh 'mvn -B test' }
-            post {
-                always { junit 'target/surefire-reports/*.xml' }
+            steps {
+                checkout scm
             }
         }
-        stage('Package') {
-            steps { sh 'mvn -B package -DskipTests' }
+
+        stage('Build') {
+            steps {
+                sh 'java -version'
+                sh 'mvn -version'
+                sh 'mvn -B clean compile'
+            }
         }
+
+        stage('Test') {
+            steps {
+                sh 'mvn -B test'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                sh 'mvn -B package -DskipTests'
+            }
+        }
+
         stage('Archive') {
-            steps { archiveArtifacts artifacts: 'target/*.jar', fingerprint: true }
+            steps {
+                archiveArtifacts(
+                    artifacts: 'target/*.jar',
+                    fingerprint: true
+                )
+            }
         }
     }
 
     post {
-        success {
-            mail to: 'your-email@example.com',
-                 subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Build passed.\n${env.BUILD_URL}"
+        always {
+            echo 'WeatherWise pipeline execution completed.'
         }
+
+        success {
+            echo 'SUCCESS: WeatherWise CI/CD pipeline completed successfully!'
+        }
+
         failure {
-            mail to: 'your-email@example.com',
-                 subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Build failed. Check the console output:\n${env.BUILD_URL}console"
+            echo 'FAILURE: WeatherWise pipeline failed. Check Console Output.'
         }
     }
 }
