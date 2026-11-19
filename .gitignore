@@ -4,3 +4,7 @@ target/
 .vscode/
 .DS_Store
 *.log
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
