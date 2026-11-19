@@ -1,5 +1,4 @@
 
-# Stage 1: Build the application
 FROM maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /app
@@ -8,11 +7,8 @@ COPY pom.xml .
 RUN mvn -B dependency:go-offline
 
 COPY src ./src
-
-# Compile, test and package
 RUN mvn -B clean verify
 
-# Stage 2: Run the application
 FROM eclipse-temurin:17-jre
 
 WORKDIR /app
