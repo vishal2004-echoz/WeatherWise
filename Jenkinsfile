@@ -3,19 +3,23 @@ pipeline {
     agent any
 
     tools {
-        jdk 'JDK17'
         maven 'Maven3'
+        jdk 'JDK17'
     }
 
     environment {
-        DOCKERHUB_REPO = 'YOUR_DOCKERHUB_USERNAME/weatherwise'
+        IMAGE_NAME = 'docker.io/vishal202004/weatherwise'
     }
 
     options {
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 20, unit: 'MINUTES')
         disableConcurrentBuilds()
+    }
+
+    triggers {
+        // Check GitHub for changes every 5 minutes
+        pollSCM('H/5 * * * *')
     }
 
     stages {
@@ -26,91 +30,75 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Check Podman') {
             steps {
-                sh 'java -version'
-                sh 'mvn -version'
-                sh 'mvn -B clean compile'
+                sh '''
+                    podman --version
+                '''
             }
         }
 
-        stage('Test') {
+        stage('Build and Test') {
             steps {
-                sh 'mvn -B test'
+                sh '''
+                    mvn clean verify
+                '''
             }
         }
 
-        stage('Package') {
+        stage('Docker Hub Authentication') {
             steps {
-                sh 'mvn -B package -DskipTests'
-                archiveArtifacts(
-                    artifacts: 'target/*.jar',
-                    fingerprint: true
-                )
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set +x
+                        printf '%s' "$DOCKER_TOKEN" | \
+                        podman login docker.io \
+                        --username "$DOCKER_USER" \
+                        --password-stdin
+                    '''
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    docker build \
-                    -t $DOCKERHUB_REPO:$BUILD_NUMBER \
-                    -t $DOCKERHUB_REPO:latest .
+                    podman build \
+                    -t ${IMAGE_NAME}:latest \
+                    -t ${IMAGE_NAME}:${BUILD_NUMBER} .
                 '''
             }
         }
 
-        stage('Push to Docker Hub') {
-            when {
-                anyOf {
-                    branch 'main'
-                    expression { !env.BRANCH_NAME }
-                }
-            }
-
+        stage('Push Docker Image') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKERHUB_USER',
-                        passwordVariable: 'DOCKERHUB_TOKEN'
-                    )
-                ]) {
-                    sh '''
-                        set -e
-
-                        echo "$DOCKERHUB_TOKEN" | docker login \
-                          --username "$DOCKERHUB_USER" \
-                          --password-stdin
-
-                        trap 'docker logout' EXIT
-
-                        docker push $DOCKERHUB_REPO:$BUILD_NUMBER
-                        docker push $DOCKERHUB_REPO:latest
-                    '''
-                }
+                sh '''
+                    podman push ${IMAGE_NAME}:latest
+                    podman push ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
             }
         }
     }
 
     post {
         always {
-            junit(
-                testResults: 'target/surefire-reports/*.xml',
-                allowEmptyResults: true
-            )
+            sh '''
+                podman logout docker.io || true
+            '''
         }
 
         success {
-            echo 'WeatherWise CI/CD completed successfully!'
+            echo 'WeatherWise CI/CD pipeline completed successfully!'
         }
 
         failure {
-            echo 'WeatherWise pipeline failed. Check the console output.'
-        }
-
-        cleanup {
-            deleteDir()
+            echo 'WeatherWise CI/CD pipeline failed. Check the console output.'
         }
     }
 }
