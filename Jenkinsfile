@@ -7,6 +7,10 @@ pipeline {
         jdk 'JDK17'
     }
 
+    environment {
+        IMAGE_NAME = 'docker.io/vishal202004/weatherwise'
+    }
+
     options {
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '10'))
@@ -14,6 +18,7 @@ pipeline {
     }
 
     triggers {
+        // Check GitHub for changes every 5 minutes
         pollSCM('H/5 * * * *')
     }
 
@@ -25,52 +30,75 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Check Podman') {
             steps {
-                sh 'java -version'
-                sh 'mvn -version'
-                sh 'mvn -B clean compile'
+                sh '''
+                    podman --version
+                '''
             }
         }
 
-        stage('Test') {
+        stage('Build and Test') {
             steps {
-                sh 'mvn -B test'
+                sh '''
+                    mvn clean verify
+                '''
             }
-            post {
-                always {
-                    junit 'target/surefire-reports/*.xml'
+        }
+
+        stage('Docker Hub Authentication') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set +x
+                        printf '%s' "$DOCKER_TOKEN" | \
+                        podman login docker.io \
+                        --username "$DOCKER_USER" \
+                        --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('Package') {
+        stage('Build Docker Image') {
             steps {
-                sh 'mvn -B package -DskipTests'
+                sh '''
+                    podman build \
+                    -t ${IMAGE_NAME}:latest \
+                    -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                '''
             }
         }
 
-        stage('Archive') {
+        stage('Push Docker Image') {
             steps {
-                archiveArtifacts(
-                    artifacts: 'target/*.jar',
-                    fingerprint: true
-                )
+                sh '''
+                    podman push ${IMAGE_NAME}:latest
+                    podman push ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
             }
         }
     }
 
     post {
         always {
-            echo 'WeatherWise pipeline execution completed.'
+            sh '''
+                podman logout docker.io || true
+            '''
         }
 
         success {
-            echo 'SUCCESS: WeatherWise CI/CD pipeline completed successfully!'
+            echo 'WeatherWise CI/CD pipeline completed successfully!'
         }
 
         failure {
-            echo 'FAILURE: WeatherWise pipeline failed. Check Console Output.'
+            echo 'WeatherWise CI/CD pipeline failed. Check the console output.'
         }
     }
 }
